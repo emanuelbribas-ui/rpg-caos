@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Safe Zone</title>
+    <style>
+        :root { --primary: #8e44ad; --dark: #0f0f0f; --card: #1c1c1c; --accent: #f1c40f; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: #eee; margin: 0; user-select: none; }
+        
+        #login-screen { position: fixed; inset: 0; background: var(--dark); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+        .login-box { background: var(--card); padding: 30px; border-radius: 15px; border: 1px solid var(--primary); width: 100%; max-width: 400px; text-align: center; }
+        
+        #game-screen { display: none; padding: 20px; }
+        .room-id-badge { position: fixed; top: 10px; left: 10px; background: var(--primary); color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
+
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 1rem; }
+        input { background: #222; color: white; border: 1px solid #444; }
+        button { background: var(--primary); color: white; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #444; cursor: not-allowed; }
+
+        .section { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #333; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-box { background: #252525; padding: 10px; border-radius: 8px; text-align: center; border-bottom: 3px solid var(--primary); }
+        .stat-box input { border: none; font-size: 1.2rem; width: 100%; text-align: center; background: transparent; }
+    </style>
+</head>
+<body oncontextmenu="return false;"> <div id="display-id" class="room-id-badge" style="display:none">ID: ------</div>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>⚔️ Área Segura RPG</h2>
+            <input type="text" id="username" maxlength="15" placeholder="Usuário (Máx 15 chars)">
+            <input type="text" id="userphoto" placeholder="Link da Foto">
+            <input type="text" id="room-input" maxlength="10" placeholder="ID da Sala">
+            <button id="btn-entrar" onclick="entrarNoJogo()">Entrar no Grupo</button>
+            <p style="font-size: 0.7rem; color: #666;">Proteção Anti-Raid Ativa</p>
+        </div>
+    </div>
+
+    <div id="game-screen">
+        <div style="text-align: center;">
+            <img id="pfp" style="width:80px; height:80px; border-radius:50%;" src="">
+            <h2 id="welcome-msg"></h2>
+        </div>
+
+        <div class="section">
+            <h3>D10 Sorteio</h3>
+            <div id="d10-val" style="font-size: 3rem; text-align:center; color: var(--accent);">0</div>
+            <button id="btn-dado" onclick="rolarD10()">Lançar Dado 🎲</button>
+        </div>
+
+        <div class="section">
+            <div class="stats">
+                <div class="stat-box"><label>HP</label><input type="number" value="100"></div>
+                <div class="stat-box"><label>DEF</label><input type="number" value="10"></div>
+            </div>
+            <button id="btn-char" onclick="gerarPersonagem()">Sortear Poder/Raça</button>
+            <div id="char-res" style="margin-top:10px; color: var(--accent);"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- SEGURANÇA: ANTI-F12 e ATALHOS ---
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 'I'.charCodeAt(0) || e.keyCode == 'J'.charCodeAt(0))) || (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0))) {
+                return false;
+            }
+        };
+
+        // --- SEGURANÇA: LIMPEZA DE TEXTO (Anti-XSS) ---
+        function cleanInput(str) {
+            return str.replace(/[<>]/g, "");
+        }
+
+        // --- COOLDOWN (Anti-Spam) ---
+        function aplicarCooldown(btnId, tempo) {
+            const btn = document.getElementById(btnId);
+            btn.disabled = true;
+            setTimeout(() => { btn.disabled = false; }, tempo);
+        }
+
+        function entrarNoJogo() {
+            const user = cleanInput(document.getElementById('username').value);
+            const photo = document.getElementById('userphoto').value;
+            let roomID = cleanInput(document.getElementById('room-input').value.toUpperCase());
+
+            if (!user || user.length < 3) {
+                alert("Nome muito curto ou inválido!");
+                return;
+            }
+
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('display-id').style.display = 'block';
+            document.getElementById('display-id').innerText = "SALA: " + (roomID || "AVULSA");
+            document.getElementById('welcome-msg').innerText = user;
+            document.getElementById('pfp').src = photo || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+        }
+
+        function rolarD10() {
+            aplicarCooldown('btn-dado', 1000); // Só pode rolar 1x por segundo
+            document.getElementById('d10-val').innerText = Math.floor(Math.random() * 10) + 1;
+        }
+
+        function gerarPersonagem() {
+            aplicarCooldown('btn-char', 2000);
+            const racas = ["Dragão", "Morto-Vivo", "Elfo Sombrio", "Lobisomem"];
+            const pwr = ["Chamas", "Sombras", "Raio", "Peste"];
+            const r = racas[Math.floor(Math.random() * racas.length)];
+            const p = pwr[Math.floor(Math.random() * pwr.length)];
+            document.getElementById('char-res').innerHTML = `Raça: ${r} | Poder: ${p}`;
+        }
+    </script>
+</body>
+</html>
